@@ -1,7 +1,7 @@
-import { Component, Inject, OnInit} from '@angular/core';
+import {Component, Inject, OnDestroy, OnInit} from '@angular/core';
 import {JsonplaceholderService} from "./services/jsonplaceholder.service";
-import {interval, Observable} from "rxjs";
-import {map} from "rxjs/operators";
+import {interval, Observable, of, Subject} from "rxjs";
+import {map, switchMap} from "rxjs/operators";
 import {MAT_DIALOG_DATA, MatDialog, MatDialogRef} from "@angular/material/dialog";
 
 @Component({
@@ -15,19 +15,19 @@ export class AppComponent implements OnInit{
   public posts: Array<any>;
   public currentDialogPostIndex: number = 0;
 
-  private dialogRef: MatDialogRef<Dialog, any>;
+  private dialogRef: Subject<MatDialogRef<Dialog, any>> = new Subject<MatDialogRef<Dialog, any>>();
 
   constructor(private jsonplaceholderService: JsonplaceholderService, public dialog: MatDialog) {}
 
   ngOnInit(): void {
     this.fetchAllPostsInterval();
     this.fetchPosts();
-
+    this.handleDialogClose();
   }
 
   private fetchAllPostsInterval() {
     this.usersPosts$ = this.fetchAllPosts();
-    interval(60000).subscribe((x) => {
+    interval(60000).subscribe(() => {
       this.usersPosts$ = this.fetchAllPosts();
     });
   }
@@ -66,24 +66,31 @@ export class AppComponent implements OnInit{
   }
 
   private openDialog() {
-    this.dialogRef = this.dialog.open(Dialog, {
+    this.dialogRef.next(this.dialog.open(Dialog, {
       width: '450px',
       data: {
         title: `${this.posts[this.currentDialogPostIndex].id} ${this.posts[this.currentDialogPostIndex].title}`,
         body: this.posts[this.currentDialogPostIndex].body
       }
-    });
+    }));
   }
 
   private handleDialogClose() {
-    this.dialogRef.afterClosed().subscribe(result => {
-      this.currentDialogPostIndex = this.currentDialogPostIndex + 1;
-    });
+    this.dialogRef.asObservable().pipe(
+        switchMap((ref) => {
+          console.log('closed')
+          ref.afterClosed().subscribe(() => {
+            this.currentDialogPostIndex = this.currentDialogPostIndex + 1;
+            this.openDialog();
+          });
+          return of();
+        })
+    ).subscribe()
   }
 
   public onShowPostsClick() {
     this.openDialog();
-    this.handleDialogClose();
+    // this.handleDialogClose();
   }
 }
 
@@ -91,10 +98,18 @@ export class AppComponent implements OnInit{
   selector: 'app-dialog',
   templateUrl: './dialog.html',
 })
-export class Dialog {
+export class Dialog implements OnDestroy{
+
   constructor(
       public dialogRef: MatDialogRef<Dialog>,
       @Inject(MAT_DIALOG_DATA) public data: {title: string; body: string}
-  ) {
+  ) {}
+
+  onClose(): void {
+    this.dialogRef.close();
+  }
+
+  ngOnDestroy(): void {
+    // this.dialogRef.close();
   }
 }
