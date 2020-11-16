@@ -1,0 +1,24 @@
+<div class="container">
+    <div class="section-a">
+        <h1>Posts by user</h1>
+
+        <div class="posts-by-user">
+            <div class="user" *ngFor="let user of usersPosts$ | async">
+                <p>User ID: {{user.userId}}</p>
+
+                <ul class="user-posts">
+                    <li *ngFor="let userPost of user.posts">{{userPost.body}}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="section-b">
+        <h1>Posts by post</h1>
+        <button mat-button color="primary" (click)="onShowPostsClick()">Show posts</button>
+    </div>
+</div>
+
+
+
